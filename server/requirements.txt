@@ -1,0 +1,35 @@
+# Web Framework
+fastapi
+uvicorn[standard]
+python-multipart
+
+# LangChain & Ecosystem
+langchain
+langchain-community
+langchain-core
+langchain-groq
+
+# Vectorstore
+pinecone==3.2.2
+langchain-pinecone==0.1.2
+
+# Embeddings
+langchain-google-genai
+google-genai
+
+# PDF Parsing
+PyPDF2
+
+# Vision and Image Processing
+pillow
+
+# Environment Variables
+python-dotenv
+
+# Typing & Utilities
+pydantic
+requests
+tqdm
+
+# Logging
+loguru

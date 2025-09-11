@@ -1,0 +1,19 @@
+# Python-specific files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment directory
+.venv/
+venv/
+
+# Sensitive data
+.env
+.streamlit/
+
+# User-uploaded documents
+/server/uploaded_docs/
+
+# IDE files
+.idea/
