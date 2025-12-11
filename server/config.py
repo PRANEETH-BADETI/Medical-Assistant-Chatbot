@@ -14,6 +14,14 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "medicalindex")
+DATABASE_URL = os.getenv("DATABASE_URL")
+# --JWT--
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+
+# --- Namespace Config ---
+GLOBAL_KB_NAMESPACE = "global_kb"
 
 # Configuration checks
 if not GOOGLE_API_KEY:
@@ -22,6 +30,10 @@ if not PINECONE_API_KEY:
     raise ValueError("PINECONE_API_KEY not found in .env file")
 if not GROQ_API_KEY:
     raise ValueError("GROQ_API_KEY not found in .env file")
+if not DATABASE_URL:
+    raise ValueError("DataBase URL not found in .env file")
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY not found in .env file. Please generate a strong secret key.")
 
 # Initialize clients once at startup
 try:

@@ -4,7 +4,12 @@ from middlewares.exception_handlers import catch_exception_middleware
 from routes.upload_pdfs import router as upload_router
 from routes.ask_question import router as ask_router
 from logger import logger
-from config import * # Import everything from the new config file
+from config import *
+from database import engine, Base
+import models.user
+from routes.auth import router as auth_router
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Medical Assistant API", description="API for AI Medical Assistant Chatbot")
 
@@ -23,6 +28,7 @@ app.middleware("http")(catch_exception_middleware)
 # Routers
 app.include_router(upload_router)
 app.include_router(ask_router)
+app.include_router(auth_router)
 
 # Startup event for debugging
 @app.on_event("startup")

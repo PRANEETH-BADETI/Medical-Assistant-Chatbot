@@ -33,3 +33,11 @@ tqdm
 
 # Logging
 loguru
+
+# --- Block 1: Database ---
+sqlalchemy
+psycopg2-binary  # The Python driver for PostgreSQL
+alembic         # For database migrations (production best practice)
+
+passlib[bcrypt]
+python-jose[cryptography]

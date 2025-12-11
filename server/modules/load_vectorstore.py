@@ -10,11 +10,18 @@ import google.generativeai as genai
 from PIL import Image
 import io
 from pinecone import ServerlessSpec
-from config import pc, embed_model, PINECONE_INDEX_NAME, GOOGLE_API_KEY, PINECONE_API_KEY
+from config import pc, embed_model, PINECONE_INDEX_NAME, GOOGLE_API_KEY, PINECONE_API_KEY, GLOBAL_KB_NAMESPACE
+from models.user import User, UserRole
 
-
-def load_vectorstore(file_paths: list = None):
+def load_vectorstore(user: User, file_paths: list = None):
     logger.info("Starting load_vectorstore")
+
+    if user.role == UserRole.ADMIN:
+        namespace = GLOBAL_KB_NAMESPACE
+        logger.info(f"User is ADMIN, uploading to '{namespace}' namespace.")
+    else:
+        namespace = f"user_{user.id}"
+        logger.info(f"User is USER, uploading to private '{namespace}' namespace.")
 
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
@@ -71,7 +78,8 @@ def load_vectorstore(file_paths: list = None):
                 vectorstore = PineconeVectorStore(
                     index_name=PINECONE_INDEX_NAME,
                     embedding=embed_model,
-                    pinecone_api_key=PINECONE_API_KEY
+                    pinecone_api_key=PINECONE_API_KEY,
+                    namespace=namespace
                 )
                 vectorstore.add_documents(chunks)
                 logger.info(f"Processed and stored {file_path}")
