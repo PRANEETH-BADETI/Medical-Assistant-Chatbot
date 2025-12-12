@@ -23,6 +23,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
 # --- Namespace Config ---
 GLOBAL_KB_NAMESPACE = "global_kb"
 
+# ---Celery Config ---
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
+
 # Configuration checks
 if not GOOGLE_API_KEY:
     raise ValueError("GOOGLE_API_KEY not found in .env file")
@@ -55,7 +59,8 @@ try:
     llm = ChatGroq(
         groq_api_key=GROQ_API_KEY,
         model_name="llama-3.3-70b-versatile",
-        temperature=0.7
+        temperature=0.7,
+        streaming=True
     )
 
     logger.info("Global clients initialized successfully.")

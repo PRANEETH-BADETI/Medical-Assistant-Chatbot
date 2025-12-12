@@ -21,3 +21,6 @@ def create_user(db: Session, user: UserCreate):
     db.refresh(db_user)
     return db_user
 
+def get_user_by_id(db: Session, user_id: int):
+    '''Fetches a single user by their ID.'''
+    return db.query(User).filter(User.id == user_id).first()

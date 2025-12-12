@@ -18,7 +18,7 @@ langchain-google-genai
 google-genai
 
 # PDF Parsing
-PyPDF2
+pypdf
 
 # Vision and Image Processing
 pillow
@@ -41,3 +41,8 @@ alembic         # For database migrations (production best practice)
 
 passlib[bcrypt]
 python-jose[cryptography]
+
+celery
+redis
+
+asyncio_throttle

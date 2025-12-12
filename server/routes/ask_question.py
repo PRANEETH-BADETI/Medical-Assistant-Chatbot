@@ -1,56 +1,128 @@
+# server/routes/ask_question.py
+
 from fastapi import APIRouter, Form, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import StreamingResponse
 from langchain_pinecone import PineconeVectorStore
 from langchain.retrievers.merger_retriever import MergerRetriever
+from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
 from modules.llm import get_llm_chain
-from modules.query_handlers import query_chain
 from logger import logger
 from config import pc, embed_model, PINECONE_INDEX_NAME, llm, PINECONE_API_KEY, GLOBAL_KB_NAMESPACE
+
+from sqlalchemy.orm import Session
+from database import get_db
+import crud.message as message_crud
+from schemas.message import MessageCreate
+from models.message import MessageRole
+
 from utils.auth_deps import get_current_user
 from models.user import User
+import asyncio
+
 
 router = APIRouter(prefix="/ask", tags=["ask"])
 
+
+async def stream_generator(chain, question: str, db: Session, user: User):
+    """
+    Generator function to stream the response and save it to the DB.
+    """
+
+    # 1. Save the user's message to the DB
+    try:
+        message_crud.create_message(
+            db=db,
+            message=MessageCreate(content=question, role=MessageRole.USER),
+            user_id=user.id
+        )
+    except Exception as e:
+        logger.error(f"Failed to save user message: {e}")
+        # Don't stop the stream, just log the error
+
+    full_response = ""
+    try:
+        # --- FIX IS HERE ---
+        # Change "question" to "input" in the dictionary below:
+        async for chunk in chain.astream({"input": question}):
+
+            # LCEL yields a dict. We want the "answer" field.
+            if "answer" in chunk:
+                token = chunk["answer"]
+                full_response += token
+                yield token
+
+    except Exception as e:
+        logger.error(f"Error during chain streaming: {e}")
+        yield f"Error: {str(e)}"
+
+
+    finally:
+
+        # 3. Save Assistant Response
+
+        if full_response:
+
+            try:
+
+                message_crud.create_message(
+
+                    db=db,
+
+                    message=MessageCreate(content=full_response, role=MessageRole.ASSISTANT),
+
+                    user_id=user.id
+
+                )
+
+            except Exception as e:
+
+                logger.error(f"Failed to save AI response: {e}")
+
+
 @router.post("/")
-async def ask_question(question: str = Form(...),
-    current_user: User = Depends(get_current_user)):
+async def ask_question(
+        question: str = Form(...),
+        current_user: User = Depends(get_current_user),
+        db: Session = Depends(get_db)
+):
+    """
+    Asks a question to the LLM and streams the response.
+    """
     try:
         logger.info(f"User query from {current_user.email}: {question}")
 
-        # Use PineconeVectorStore as a retriever
+        # --- Multi-Tenant Retriever Logic ---
         vectorstore = PineconeVectorStore(
             index_name=PINECONE_INDEX_NAME,
             embedding=embed_model,
             pinecone_api_key=PINECONE_API_KEY
         )
-
-        # 2. Create a retriever for the user's private namespace
         user_namespace = f"user_{current_user.id}"
         user_retriever = vectorstore.as_retriever(
             search_kwargs={"k": 2, "namespace": user_namespace}
         )
-        logger.debug(f"Searching in user namespace: {user_namespace}")
-
-        # 3. Create a retriever for the global admin namespace
         global_retriever = vectorstore.as_retriever(
             search_kwargs={"k": 2, "namespace": GLOBAL_KB_NAMESPACE}
         )
-        logger.debug(f"Searching in global namespace: {GLOBAL_KB_NAMESPACE}")
-
-        # 4. Create the MergerRetriever (aka "Ensemble Retriever")
-        # This will run both retrievers and combine the results.
         retriever = MergerRetriever(retrievers=[user_retriever, global_retriever])
+        # --- End Retriever Logic ---
 
-        retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
-
-        # Get the LLM chain with the retriever and pre-initialized LLM
+        # Get the LLM chain
+        # NOTE: We pass the *synchronous* llm object,
+        # but the RetrievalQA.ainvoke method will run it asynchronously.
         chain = get_llm_chain(retriever, llm)
 
-        result = query_chain(chain, question)
-
-        logger.info("Query successful")
-        return result
+        # Return the streaming response
+        return StreamingResponse(
+            stream_generator(chain, question, db, current_user),
+            media_type="text/plain"
+        )
 
     except Exception as e:
         logger.exception(f"Error on asking question: {str(e)}")
-        return JSONResponse(status_code=500, content={"error": "An unexpected error occurred."})
+        # This will be caught by the frontend as a non-streaming error
+        return StreamingResponse(
+            iter(["I'm sorry, a server error occurred. Please try again."]),
+            media_type="text/plain",
+            status_code=500
+        )
