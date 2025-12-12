@@ -4,8 +4,16 @@ import requests
 import streamlit as st
 import os
 
-# Get API URL from secrets or environment (for Docker compatibility later)
-API_URL = os.getenv("API_URL", st.secrets.get("API_URL", "http://localhost:8000"))
+api_url_env = os.getenv("API_URL")
+
+if api_url_env:
+    API_URL = api_url_env
+else:
+    # Fallback to secrets or localhost only if Env Var is missing
+    try:
+        API_URL = st.secrets.get("API_URL", "http://localhost:8000")
+    except Exception:
+        API_URL = "http://localhost:8000"
 
 def login_api(email, password):
     """Sends login request and returns the access token."""

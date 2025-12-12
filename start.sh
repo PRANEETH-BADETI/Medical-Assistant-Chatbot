@@ -1,7 +1,16 @@
 #!/bin/bash
 
-# Start the FastAPI server in the background
-uvicorn server.main:app --host 0.0.0.0 --port 8000 &
+# 1. Navigate to server directory
+cd server
 
-# Start the Streamlit app
-streamlit run client/app.py --server.port $PORT
+# 2. Start Celery Worker (Background PDF processing)
+celery -A celery_app worker --loglevel=info &
+
+# 3. Start FastAPI Backend
+uvicorn main:app --host 0.0.0.0 --port 8000 &
+
+# 4. Navigate back to root
+cd ..
+
+# 5. Start Streamlit Frontend
+streamlit run client/app.py --server.port $PORT --server.address 0.0.0.0
