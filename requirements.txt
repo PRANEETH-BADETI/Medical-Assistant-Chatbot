@@ -1,37 +1,41 @@
-# Web Framework
+# --- Web Framework ---
 fastapi
 uvicorn[standard]
 python-multipart
 
-# LangChain & Ecosystem
+# --- Frontend ---
+streamlit
+
+# --- AI & LangChain ---
 langchain
 langchain-community
 langchain-core
 langchain-groq
-
-# Vectorstore
-pinecone==3.2.2
-langchain-pinecone==0.1.2
-
-# Embeddings
 langchain-google-genai
 google-genai
+pinecone-client==3.2.2
+langchain-pinecone==0.1.2
 
-# PDF Parsing
+# --- PDF & Image Processing ---
 PyPDF2
-
-# Vision and Image Processing
+pypdf
 pillow
 
-# Environment Variables
-python-dotenv
+# --- Database & Auth (MISSING BEFORE) ---
+sqlalchemy
+psycopg2-binary
+passlib[bcrypt]
+python-jose[cryptography]
+alembic
 
-# Typing & Utilities
+# --- Background Tasks (MISSING BEFORE) ---
+celery
+redis
+asyncio_throttle
+
+# --- Utilities ---
+python-dotenv
 pydantic
 requests
 tqdm
-
-# Logging
 loguru
-
-streamlit
