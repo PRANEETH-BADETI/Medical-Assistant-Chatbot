@@ -10,8 +10,8 @@ langchain-core
 langchain-groq
 langchain-google-genai
 google-genai
-pinecone-client==3.2.2
-langchain-pinecone==0.1.2
+pinecone-client
+langchain-pinecone
 
 # --- PDF & Image Processing ---
 PyPDF2
