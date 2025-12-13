@@ -1,48 +1,40 @@
-# Web Framework
+# --- Web Framework ---
 fastapi
 uvicorn[standard]
 python-multipart
 
-# LangChain & Ecosystem
+# --- AI & LangChain ---
 langchain
 langchain-community
 langchain-core
 langchain-groq
-
-# Vectorstore
-pinecone==3.2.2
-langchain-pinecone==0.1.2
-
-# Embeddings
 langchain-google-genai
 google-genai
+pinecone-client==3.2.2
+langchain-pinecone==0.1.2
 
-# PDF Parsing
+# --- PDF & Image Processing ---
+PyPDF2
 pypdf
-
-# Vision and Image Processing
 pillow
 
-# Environment Variables
-python-dotenv
+# --- Database & Auth ---
+sqlalchemy
+psycopg2-binary
+passlib[bcrypt]
+python-jose[cryptography]
+alembic
+bcrypt==4.0.1
+email-validator
 
-# Typing & Utilities
+# --- Background Tasks ---
+celery
+redis
+asyncio_throttle
+
+# --- Utilities ---
+python-dotenv
 pydantic
 requests
 tqdm
-
-# Logging
 loguru
-
-# --- Block 1: Database ---
-sqlalchemy
-psycopg2-binary  # The Python driver for PostgreSQL
-alembic         # For database migrations (production best practice)
-
-passlib[bcrypt]
-python-jose[cryptography]
-
-celery
-redis
-
-asyncio_throttle
