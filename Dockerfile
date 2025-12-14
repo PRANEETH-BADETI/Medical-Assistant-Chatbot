@@ -21,8 +21,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY server/ ./server/
 
 # Copy the startup script (we will create this next)
-COPY start_backend.sh .
-RUN chmod +x start_backend.sh
+COPY start.sh .
+RUN chmod +x start.sh
 
 # Create the upload directory so the app doesn't crash
 RUN mkdir -p server/uploaded_docs
@@ -31,4 +31,4 @@ RUN mkdir -p server/uploaded_docs
 EXPOSE 7860
 
 # Run the startup script
-CMD ["./start_backend.sh"]
+CMD ["./start.sh"]
