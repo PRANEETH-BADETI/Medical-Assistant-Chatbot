@@ -1,34 +1,28 @@
-# server/crud/message.py
-
 from sqlalchemy.orm import Session
 from models.message import Message, MessageRole
 from schemas.message import MessageCreate
 from logger import logger
 
-def create_message(db: Session, message: MessageCreate, user_id: int) -> Message:
-    """
-    Saves a new chat message to the database.
-    """
+def create_message(db: Session, message: MessageCreate, user_id: int, session_id: int) -> Message:
     db_message = Message(
         content=message.content,
         role=message.role,
-        owner_id=user_id
+        owner_id=user_id,
+        session_id=session_id
     )
     db.add(db_message)
     db.commit()
     db.refresh(db_message)
-    logger.debug(f"Saved message (ID: {db_message.id}) for user {user_id}")
     return db_message
 
-def get_messages_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> list[Message]:
-    """
-    Retrieves all chat messages for a specific user.
-    """
+def get_messages_by_session(db: Session, session_id: int, user_id: int):
+    """Retrieves messages for a specific session, verifying ownership."""
+    # We join with ChatSession to ensure the user owns this session
     return (
         db.query(Message)
+        .join(Message.session)
+        .filter(Message.session_id == session_id)
         .filter(Message.owner_id == user_id)
         .order_by(Message.created_at.asc())
-        .offset(skip)
-        .limit(limit)
         .all()
     )

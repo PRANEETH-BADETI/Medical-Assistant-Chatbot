@@ -1,128 +1,129 @@
-# server/routes/ask_question.py
-
-from fastapi import APIRouter, Form, Depends
+import json
+from fastapi import APIRouter, Form, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from langchain_pinecone import PineconeVectorStore
-from langchain.retrievers.merger_retriever import MergerRetriever
-from langchain.callbacks.streaming_aiter import AsyncIteratorCallbackHandler
-from modules.llm import get_llm_chain
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 from logger import logger
 from config import pc, embed_model, PINECONE_INDEX_NAME, llm, PINECONE_API_KEY, GLOBAL_KB_NAMESPACE
-
 from sqlalchemy.orm import Session
 from database import get_db
 import crud.message as message_crud
+import crud.chat as chat_crud
 from schemas.message import MessageCreate
 from models.message import MessageRole
-
 from utils.auth_deps import get_current_user
 from models.user import User
-import asyncio
-
 
 router = APIRouter(prefix="/ask", tags=["ask"])
 
 
-async def stream_generator(chain, question: str, db: Session, user: User):
-    """
-    Generator function to stream the response and save it to the DB.
-    """
+async def stream_generator(question, session_id, db, user, vectorstore, session_namespace):
+    # 1. Save User Message
+    message_crud.create_message(
+        db, MessageCreate(content=question, role=MessageRole.USER), user.id, session_id
+    )
 
-    # 1. Save the user's message to the DB
-    try:
-        message_crud.create_message(
-            db=db,
-            message=MessageCreate(content=question, role=MessageRole.USER),
-            user_id=user.id
-        )
-    except Exception as e:
-        logger.error(f"Failed to save user message: {e}")
-        # Don't stop the stream, just log the error
+    # 2. Auto-Title Check
+    msgs = message_crud.get_messages_by_session(db, session_id, user.id)
+    if len(msgs) <= 2:
+        try:
+            title_prompt = ChatPromptTemplate.from_template(
+                "Summarize this question into a short 3-5 word title: {question}"
+            )
+            title_chain = title_prompt | llm | StrOutputParser()
+            new_title = title_chain.invoke({"question": question}).strip('"')
+            chat_crud.update_session_title(db, session_id, new_title, user.id)
+        except Exception:
+            pass
 
     full_response = ""
-    try:
-        # --- FIX IS HERE ---
-        # Change "question" to "input" in the dictionary below:
-        async for chunk in chain.astream({"input": question}):
+    source_metadata = []
 
-            # LCEL yields a dict. We want the "answer" field.
-            if "answer" in chunk:
-                token = chunk["answer"]
-                full_response += token
-                yield token
+    try:
+        # 3. HYBRID RETRIEVAL (Session + Global)
+
+        # A. Search Private Session
+        docs_session = vectorstore.similarity_search_with_score(
+            question, k=3, namespace=session_namespace
+        )
+        # Tag them as Private
+        for doc, _ in docs_session:
+            doc.metadata["source_type"] = "Private"
+
+        # B. Search Global Knowledge Base
+        docs_global = vectorstore.similarity_search_with_score(
+            question, k=3, namespace=GLOBAL_KB_NAMESPACE
+        )
+        # Tag them as Global
+        for doc, _ in docs_global:
+            doc.metadata["source_type"] = "Global"
+
+        # C. Combine & Sort
+        all_docs = docs_session + docs_global
+        all_docs.sort(key=lambda x: x[1], reverse=True)
+        final_docs = all_docs[:4]
+
+        # Prepare Context
+        context_text = "\n\n".join([d.page_content for d, _ in final_docs])
+
+        # Prepare Metadata (Including the new "type" field)
+        unique_sources = {}
+        for doc, score in final_docs:
+            src = doc.metadata.get("source", "Unknown")
+            if src not in unique_sources:
+                unique_sources[src] = {
+                    "source": src,
+                    "score": round(score, 4),
+                    "type": doc.metadata.get("source_type", "Private")  # <--- Sending this to UI
+                }
+        source_metadata = list(unique_sources.values())
+
+        # 4. Generate Answer
+        system_prompt = """You are MediBot. Answer based ONLY on the context.
+        Context: {context}
+        Question: {question}"""
+
+        prompt = ChatPromptTemplate.from_template(system_prompt)
+        chain = prompt | llm | StrOutputParser()
+
+        async for chunk in chain.astream({"context": context_text, "question": question}):
+            full_response += chunk
+            yield chunk
+
+        # 5. Append Sources
+        if source_metadata:
+            yield f"|||SOURCES|||{json.dumps(source_metadata)}"
 
     except Exception as e:
-        logger.error(f"Error during chain streaming: {e}")
-        yield f"Error: {str(e)}"
-
+        yield f"Error: {e}"
 
     finally:
-
-        # 3. Save Assistant Response
-
         if full_response:
-
-            try:
-
-                message_crud.create_message(
-
-                    db=db,
-
-                    message=MessageCreate(content=full_response, role=MessageRole.ASSISTANT),
-
-                    user_id=user.id
-
-                )
-
-            except Exception as e:
-
-                logger.error(f"Failed to save AI response: {e}")
+            message_crud.create_message(
+                db, MessageCreate(content=full_response, role=MessageRole.ASSISTANT),
+                user.id, session_id
+            )
 
 
-@router.post("/")
+@router.post("/{session_id}")
 async def ask_question(
+        session_id: int,
         question: str = Form(...),
         current_user: User = Depends(get_current_user),
         db: Session = Depends(get_db)
 ):
-    """
-    Asks a question to the LLM and streams the response.
-    """
-    try:
-        logger.info(f"User query from {current_user.email}: {question}")
+    session = chat_crud.get_session(db, session_id, current_user.id)
+    if not session: raise HTTPException(404, "Session not found")
 
-        # --- Multi-Tenant Retriever Logic ---
-        vectorstore = PineconeVectorStore(
-            index_name=PINECONE_INDEX_NAME,
-            embedding=embed_model,
-            pinecone_api_key=PINECONE_API_KEY
-        )
-        user_namespace = f"user_{current_user.id}"
-        user_retriever = vectorstore.as_retriever(
-            search_kwargs={"k": 2, "namespace": user_namespace}
-        )
-        global_retriever = vectorstore.as_retriever(
-            search_kwargs={"k": 2, "namespace": GLOBAL_KB_NAMESPACE}
-        )
-        retriever = MergerRetriever(retrievers=[user_retriever, global_retriever])
-        # --- End Retriever Logic ---
+    vectorstore = PineconeVectorStore(
+        index_name=PINECONE_INDEX_NAME, embedding=embed_model, pinecone_api_key=PINECONE_API_KEY
+    )
 
-        # Get the LLM chain
-        # NOTE: We pass the *synchronous* llm object,
-        # but the RetrievalQA.ainvoke method will run it asynchronously.
-        chain = get_llm_chain(retriever, llm)
+    # Pass the private namespace. The generator will ALSO check global.
+    session_namespace = f"session_{session_id}"
 
-        # Return the streaming response
-        return StreamingResponse(
-            stream_generator(chain, question, db, current_user),
-            media_type="text/plain"
-        )
-
-    except Exception as e:
-        logger.exception(f"Error on asking question: {str(e)}")
-        # This will be caught by the frontend as a non-streaming error
-        return StreamingResponse(
-            iter(["I'm sorry, a server error occurred. Please try again."]),
-            media_type="text/plain",
-            status_code=500
-        )
+    return StreamingResponse(
+        stream_generator(question, session_id, db, current_user, vectorstore, session_namespace),
+        media_type="text/plain"
+    )

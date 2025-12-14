@@ -1,7 +1,7 @@
 # client/components/auth_ui.py
 
 import streamlit as st
-from utils.api import login_api, register_api, get_history_api
+from utils.api import login_api, register_api  # <--- Removed get_history_api
 import time
 
 
@@ -25,16 +25,11 @@ def render_auth():
                         st.session_state["token"] = result["access_token"]
                         st.success("Login successful!")
 
-                        # 2. Load chat history immediately
-                        history = get_history_api(result["access_token"])
-                        # Transform history format to match UI format
-                        st.session_state.messages = [
-                            {"role": msg["role"], "content": msg["content"]}
-                            for msg in history
-                        ]
+                        # Note: We NO LONGER fetch history here.
+                        # The app will rerun, and the Sidebar will fetch the list of sessions.
 
                         time.sleep(1)
-                        st.rerun()  # Refresh app to show the chat UI
+                        st.rerun()  # Refresh app to load the main UI
                     else:
                         st.error(result.get("error", "Login failed"))
             else:

@@ -1,5 +1,3 @@
-# server/schemas/message.py
-
 from pydantic import BaseModel
 from datetime import datetime
 from models.message import MessageRole
@@ -9,10 +7,12 @@ class MessageBase(BaseModel):
     role: MessageRole
 
 class MessageCreate(MessageBase):
-    pass # Nothing extra needed to create
+    # We allow passing session_id explicitly if needed
+    pass
 
 class MessageDisplay(MessageBase):
     id: int
+    session_id: int
     created_at: datetime
 
     class Config:

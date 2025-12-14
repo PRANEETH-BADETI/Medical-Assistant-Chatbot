@@ -4,12 +4,16 @@ from middlewares.exception_handlers import catch_exception_middleware
 from routes.upload_pdfs import router as upload_router
 from routes.ask_question import router as ask_router
 from routes.chat import router as chat_router
+from routes.auth import router as auth_router
 from logger import logger
 from config import *
 from database import engine, Base
+from routes.files import router as files_router
+
+# Import all models so Alembic/SQLAlchemy knows about them
 import models.user
 import models.message
-from routes.auth import router as auth_router
+import models.chat  # <--- NEW
 
 Base.metadata.create_all(bind=engine)
 
@@ -24,18 +28,13 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-# Middleware for exception handling
 app.middleware("http")(catch_exception_middleware)
 
-# Routers
 app.include_router(upload_router)
 app.include_router(ask_router)
 app.include_router(auth_router)
 app.include_router(chat_router)
-
-# Startup event for debugging
+app.include_router(files_router)
 @app.on_event("startup")
 async def startup_event():
     logger.info("Starting Medical Assistant API")
-    logger.debug(f"PINECONE_INDEX_NAME: {PINECONE_INDEX_NAME}")
-    # The clients are already initialized via config.py import.

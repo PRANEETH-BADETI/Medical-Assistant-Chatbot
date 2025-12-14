@@ -1,12 +1,17 @@
 from database import SessionLocal
 from models.user import User, UserRole
+import models.chat
+import models.message
+import models.file
 
 # CHANGE THIS to your email
 TARGET_EMAIL = "praneethbadeti@gmail.com"
 
 db = SessionLocal()
 try:
+    # Now SQLAlchemy knows about User, ChatSession, AND Message
     user = db.query(User).filter(User.email == TARGET_EMAIL).first()
+
     if user:
         user.role = UserRole.ADMIN
         db.commit()

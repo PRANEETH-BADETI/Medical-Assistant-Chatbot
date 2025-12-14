@@ -1,5 +1,6 @@
 import enum
 from sqlalchemy import Column, Integer, String, Boolean, Enum
+from sqlalchemy.orm import relationship
 from database import Base
 
 class UserRole(str, enum.Enum):
@@ -13,4 +14,7 @@ class User(Base):
     email = Column(String, unique=True, index = True, nullable=False)
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
-    role = Column(Enum(UserRole),default=UserRole.USER, nullable=False)
+    role = Column(Enum(UserRole), default=UserRole.USER, nullable=False)
+
+    # --- Relationships ---
+    sessions = relationship("ChatSession", back_populates="user")

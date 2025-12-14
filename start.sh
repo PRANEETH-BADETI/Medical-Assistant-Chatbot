@@ -1,16 +1,12 @@
 #!/bin/bash
 
-# 1. Navigate to server directory
+# Move into the server directory where main.py is
 cd server
 
-# 2. Start Celery Worker (Background PDF processing)
-celery -A celery_app worker --loglevel=info &
+# 1. Start Celery Worker (Background process)
+# --pool=solo is used because we are in a simple container environment
+celery -A celery_app worker --loglevel=info --pool=solo &
 
-# 3. Start FastAPI Backend
-uvicorn main:app --host 0.0.0.0 --port 8000 &
-
-# 4. Navigate back to root
-cd ..
-
-# 5. Start Streamlit Frontend
-streamlit run client/app.py --server.port $PORT --server.address 0.0.0.0
+# 2. Start FastAPI (Main process)
+# We must use port 7860 for Hugging Face Spaces
+uvicorn main:app --host 0.0.0.0 --port 7860
