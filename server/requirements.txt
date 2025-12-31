@@ -38,3 +38,4 @@ pydantic
 requests
 tqdm
 loguru
+fastapi-mail

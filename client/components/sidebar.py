@@ -4,7 +4,7 @@ import time
 
 
 def render_sidebar():
-    st.sidebar.title("🩺 MediBot")
+    st.sidebar.title("🩺 VitaAI")
 
     token = st.session_state.get("token")
     if not token:

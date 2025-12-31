@@ -13,11 +13,11 @@ from routes.files import router as files_router
 # Import all models so Alembic/SQLAlchemy knows about them
 import models.user
 import models.message
-import models.chat  # <--- NEW
+import models.chat
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Medical Assistant API", description="API for AI Medical Assistant Chatbot")
+app = FastAPI(title="VitaAI API", description="API for VitaAI Medical Assistant")
 
 # CORS Setup
 app.add_middleware(
@@ -35,6 +35,7 @@ app.include_router(ask_router)
 app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(files_router)
+
 @app.on_event("startup")
 async def startup_event():
-    logger.info("Starting Medical Assistant API")
+    logger.info("Starting VitaAI API")

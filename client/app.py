@@ -4,7 +4,7 @@ from components.upload import render_uploader
 from components.sidebar import render_sidebar
 from components.chatUI import render_chat
 
-st.set_page_config(page_title="AI Medical Assistant", layout="wide")
+st.set_page_config(page_title="VitaAI", layout="wide", page_icon="🩺")
 
 if "token" not in st.session_state:
     render_auth()

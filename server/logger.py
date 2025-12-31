@@ -1,6 +1,6 @@
 import logging
 
-def setup_logger(name="MedicalAssistant"):
+def setup_logger(name="VitaAI"):
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
     if not logger.hasHandlers():

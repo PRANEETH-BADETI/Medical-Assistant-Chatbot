@@ -5,6 +5,8 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 from logger import logger
+import os
+from fastapi_mail import ConnectionConfig
 
 # Load environment variables
 load_dotenv()
@@ -26,6 +28,18 @@ GLOBAL_KB_NAMESPACE = "global_kb"
 # ---Celery Config ---
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
+
+EMAIL_CONF = ConnectionConfig(
+    MAIL_USERNAME = os.getenv("MAIL_USERNAME"),
+    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD"),
+    MAIL_FROM = os.getenv("MAIL_FROM"),
+    MAIL_PORT = 587,
+    MAIL_SERVER = "smtp.gmail.com",
+    MAIL_STARTTLS = True,
+    MAIL_SSL_TLS = False,
+    USE_CREDENTIALS = True,
+    VALIDATE_CERTS = True
+)
 
 # Configuration checks
 if not GOOGLE_API_KEY:

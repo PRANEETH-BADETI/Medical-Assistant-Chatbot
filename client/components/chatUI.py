@@ -11,7 +11,7 @@ def render_chat():
         st.info("Please create or select a new chat to begin.")
         return
 
-    st.subheader("💬 Chat with MediBot")
+    st.subheader("💬 Chat with VitaAI")
 
     # --- Load History ---
     if st.session_state.get("loaded_session_id") != session_id:
@@ -24,6 +24,20 @@ def render_chat():
                     "content": msg["content"]
                 })
             st.session_state.loaded_session_id = session_id
+
+        # --- ZERO STATE: Show Suggestions if chat is empty ---
+        if not st.session_state.messages:
+            st.markdown(
+                """
+                <div style="text-align: center; color: #666; margin-top: 50px;">
+                    <h2>👋 Hello! I'm VitaAI.</h2>
+                    <p>I can help you analyze medical reports or answer your queries.</p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+
 
     # --- Display Messages ---
     for msg in st.session_state.messages:
