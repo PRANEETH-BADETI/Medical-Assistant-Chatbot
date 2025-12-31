@@ -98,7 +98,24 @@ async def register_user(user: schemas.UserCreate, db: Session = Depends(get_db))
     message = MessageSchema(
         subject="Your VitaAI Verification Code",
         recipients=[user.email],
-        body=f"Your OTP is: {otp}",
+        body=f"""
+    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2 style="color:#2EC4B6;">VitaAI Account Verification</h2>
+        
+        <p>Hello,</p>
+
+        <p>Your One-Time Password (OTP) for verifying your VitaAI account is:</p>
+
+        <h1 style="letter-spacing: 4px;">{otp}</h1>
+
+        <p>If you did not request this verification, please ignore this email.</p>
+
+        <br>
+        <p style="font-size: 12px; color: gray;">
+            This is an automated message. Please do not reply.
+        </p>
+    </div>
+    """,
         subtype=MessageType.html
     )
     fm = FastMail(EMAIL_CONF)
