@@ -8,7 +8,7 @@ import redis
 from fastapi_mail import FastMail, MessageSchema, MessageType
 
 from models.user import User, UserRole
-from utils.security import verify_password, create_access_token, get_password_hash # <--- Import get_password_hash
+from utils.security import verify_password, create_access_token, get_password_hash
 from config import ACCESS_TOKEN_EXPIRE_MINUTES, EMAIL_CONF, CELERY_BROKER_URL
 from utils.auth_deps import get_current_user
 from database import get_db
@@ -17,11 +17,7 @@ import schemas.user as schemas
 from logger import logger
 from schemas.user import VerifyRequest
 
-# Connect to Redis
-redis_client = redis.from_url(CELERY_BROKER_URL)
-
-router = APIRouter(prefix='/auth', tags=["Authentication"])
-# Connect to Redis
+# --- Connect to Redis ---
 redis_client = redis.from_url(CELERY_BROKER_URL)
 
 router = APIRouter(prefix='/auth', tags=["Authentication"])
@@ -29,7 +25,7 @@ router = APIRouter(prefix='/auth', tags=["Authentication"])
 
 @router.post("/register")
 async def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    # 1. Check if user already exists
+    # 1. Check if user already exists in DB
     db_user = crud.get_user_by_email(db, email=user.email)
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -37,37 +33,34 @@ async def register_user(user: schemas.UserCreate, db: Session = Depends(get_db))
     # 2. Generate 6-digit OTP
     otp = str(random.randint(100000, 999999))
 
-    # 3. Hash the password NOW
+    # 3. Hash the password NOW (so we don't store plain text in Redis)
     hashed_password = get_password_hash(user.password)
 
-    # 4. Store EVERYTHING in Redis
+    # 4. Store EVERYTHING in Redis (Temporary Holding Area)
     # We store a JSON string containing the OTP, Email, and Hashed Password
+    # Expires in 10 minutes (600 seconds)
     signup_data = {
         "email": user.email,
         "password": hashed_password,
         "otp": otp
     }
     redis_client.setex(f"signup_{user.email}", 600, json.dumps(signup_data))
-    # 4. Send Email (UPDATED SUBJECT)
+
+    # 5. Send Email
     message = MessageSchema(
         subject="Your VitaAI Verification Code",
         recipients=[user.email],
         body=f"""
-    <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-        <h2 style="color:#2EC4B6;">VitaAI Account Verification</h2>
-        
-        <p>Hello,</p>
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+        <h2 style="color:#2EC4B6;">VitaAI Verification</h2>
 
+        <p>Hello,</p>
         <p>Your One-Time Password (OTP) for verifying your VitaAI account is:</p>
 
-        <h1 style="letter-spacing: 4px;">{otp}</h1>
+        <h1 style="letter-spacing: 5px; color: #333;">{otp}</h1>
 
         <p>If you did not request this verification, please ignore this email.</p>
-
-        <br>
-        <p style="font-size: 12px; color: gray;">
-            This is an automated message. Please do not reply.
-        </p>
+        <p style="font-size: 12px; color: gray;">This code expires in 10 minutes.</p>
     </div>
     """,
         subtype=MessageType.html
@@ -113,6 +106,7 @@ def verify_otp(req: VerifyRequest, db: Session = Depends(get_db)):
 
     return {"message": "Account verified successfully!"}
 
+
 @router.post("/login", response_model=schemas.Token)
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(),
                            db: Session = Depends(get_db)):
@@ -120,6 +114,7 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(),
 
     user = crud.get_user_by_email(db, email=form_data.username)
 
+    # 1. Check Password
     if not user or not verify_password(form_data.password, user.hashed_password):
         logger.warning(f"Failed login attempt for user: {form_data.username}")
         raise HTTPException(
@@ -128,6 +123,15 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(),
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # 2. CRITICAL: Check Verification Status
+    if not user.is_verified:
+        logger.warning(f"Unverified login attempt: {form_data.username}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email not verified. Please verify your account first."
+        )
+
+    # 3. Generate Token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(data={"sub": user.email, "role": user.role.value},
                                        expires_delta=access_token_expires)
