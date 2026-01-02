@@ -1,0 +1,7 @@
+[theme]
+base = "dark"
+primaryColor = "#4CC9F0"            # Soft neon cyan 
+backgroundColor = "#0B132B"         # Deep navy
+secondaryBackgroundColor = "#1C2541" # Slightly lighter navy for sidebar/cards
+textColor = "#EAEAEA"               # Soft white
+font = "sans serif"

@@ -4,7 +4,7 @@ from utils.api import login_api, register_api, verify_otp_api
 
 
 def render_auth():
-    """Renders ONLY the standard Login/Register tabs."""
+    """Renders the standard Login/Register tabs."""
     st.title("🔐 Welcome to VitaAI")
 
     # Initialize verification state
@@ -48,9 +48,11 @@ def render_auth():
 
             otp_code = st.text_input("Enter 6-digit OTP", key="otp_input")
 
-            col1, col2 = st.columns([0.5, 0.5])
+            col1, col2, col3 = st.columns([0.4, 0.3, 0.3])
+
+            # Button 1: Verify
             with col1:
-                if st.button("Verify OTP"):
+                if st.button("Verify OTP", use_container_width=True):
                     if otp_code:
                         with st.spinner("Verifying..."):
                             res = verify_otp_api(
@@ -61,19 +63,31 @@ def render_auth():
 
                             if "error" not in res:
                                 st.success("Account verified! Please Login.")
+                                # Clear state
                                 st.session_state.verification_mode = False
                                 st.session_state.temp_reg_email = ""
                                 st.session_state.temp_reg_pass = ""
-                                time.sleep(2)
+                                time.sleep(3)
                                 st.rerun()
                             else:
                                 st.error(res["error"])
                     else:
                         st.warning("Please enter the OTP.")
 
+            # Button 2: Resend
             with col2:
-                if st.button("Cancel / Resend"):
+                if st.button("Resend", use_container_width=True):
+                    with st.spinner("Resending OTP..."):
+                        # We just call register again - it updates the Redis key
+                        register_api(st.session_state.temp_reg_email, st.session_state.temp_reg_pass)
+                        st.toast("New OTP sent!", icon="📧")
+
+            # Button 3: Cancel
+            with col3:
+                if st.button("Cancel", use_container_width=True):
                     st.session_state.verification_mode = False
+                    st.session_state.temp_reg_email = ""
+                    st.session_state.temp_reg_pass = ""
                     st.rerun()
 
         # CASE B: INITIAL REGISTRATION

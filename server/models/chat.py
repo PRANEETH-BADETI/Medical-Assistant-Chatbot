@@ -16,5 +16,4 @@ class ChatSession(Base):
     user = relationship("User", back_populates="sessions")
     messages = relationship("Message", back_populates="session", cascade="all, delete-orphan")
 
-    # --- NEW RELATIONSHIP ---
     files = relationship("UploadedFile", back_populates="session", cascade="all, delete-orphan")

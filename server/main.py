@@ -10,7 +10,6 @@ from config import *
 from database import engine, Base
 from routes.files import router as files_router
 
-# Import all models so Alembic/SQLAlchemy knows about them
 import models.user
 import models.message
 import models.chat
